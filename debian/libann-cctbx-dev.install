@@ -1,0 +1,5 @@
+usr/include/ANNSELF_EXCLUDE/
+usr/include/ANNSELF_INCLUDE/
+usr/lib/*/libann-cctbx.a
+usr/lib/*/libann-cctbx.la
+usr/lib/*/libann-cctbx.so

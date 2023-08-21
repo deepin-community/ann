@@ -19,6 +19,7 @@ override_dh_autoreconf:
 	for f in $(SAVE_FILES) ; do 					\
 		if [ ! -f $$f-orig ] ; then mv $$f $$f-orig ; fi	\
 	done
+	debian/cctbx
 	dh_autoreconf
 
 override_dh_clean:
@@ -27,6 +28,7 @@ override_dh_clean:
 		if [ -f $$f-orig ] ; then mv $$f-orig $$f ; fi	\
 	done
 	dh_clean
+	-rm ann-cctbx
 
 override_dh_installman: debian/ann2fig.1 debian/ann_sample.1 debian/ann_test.1
 	dh_installman

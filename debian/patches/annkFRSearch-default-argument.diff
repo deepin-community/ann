@@ -1,7 +1,16 @@
-diff -N -u -r ann-1.1.2+doc.orig//include/ANN/ANN.h ann-1.1.2+doc//include/ANN/ANN.h
---- ann-1.1.2+doc.orig//include/ANN/ANN.h	2010-01-28 05:40:01.000000000 +0100
-+++ ann-1.1.2+doc//include/ANN/ANN.h	2011-10-26 00:18:28.912976148 +0200
-@@ -755,7 +755,7 @@
+From: =?utf-8?q?Picca_Fr=C3=A9d=C3=A9ric-Emmanuel?= <picca@debian.org>
+Date: Wed, 7 Sep 2022 11:58:25 +0200
+Subject: set the annkFRSearch-default-argument
+
+---
+ include/ANN/ANN.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/ANN/ANN.h b/include/ANN/ANN.h
+index dffee3c..bf6eb30 100644
+--- a/include/ANN/ANN.h
++++ b/include/ANN/ANN.h
+@@ -755,7 +755,7 @@ public:
  	int annkFRSearch(					// approx fixed-radius kNN search
  		ANNpoint		q,				// the query point
  		ANNdist			sqRad,			// squared radius of query ball

@@ -1,9 +1,7 @@
 makefile-infloop-fix.diff
 doc-makefile-clean.diff
-#include-c-headers.diff
 autotools-files.diff
-#use-cstring.diff
 consider-pts-null.diff
-#ann-exception.diff
 annkFRSearch-default-argument.diff
 clang-ftbfs.diff
+0007-update-autotools-file-for-the-cctbx-variant.patch
