@@ -1,0 +1,307 @@
+#!/bin/bash
+
+destdir="ann-cctbx/"
+incdir="include"
+srcdir="src"
+dstdir="self_include"
+
+
+##################################
+# Apply the cctbx transformation #
+##################################
+
+cat <<"EOF" | python3 -
+import os
+import copy
+
+annlib_under_build = "ann-cctbx"
+annlib_adaptbx_dir = "."
+annlib_under_build_include = os.path.join(annlib_under_build, "include")
+annlib_dir = "."
+
+
+def yield_includes(search_mode):
+    annlib_mode_include = os.path.join(
+        annlib_under_build_include, "ANN" + search_mode.upper()
+    )
+    if not os.path.isdir(annlib_under_build_include):
+        os.makedirs(annlib_under_build_include)
+    if not os.path.isdir(annlib_mode_include):
+        os.makedirs(annlib_mode_include)
+
+    annlib_include = os.path.join(annlib_dir, "include")
+    ANN_include = os.path.join(annlib_include, "ANN")
+    for item in os.listdir(ANN_include):
+        yield {
+            "src": os.path.join(ANN_include, item),
+            "dst": os.path.join(annlib_mode_include, item),
+        }
+
+
+def yield_src_includes(search_mode):
+    annlib_mode_src = os.path.join(annlib_under_build, search_mode)
+    if not os.path.isdir(annlib_mode_src):
+        os.makedirs(annlib_mode_src)
+    annlib_src = os.path.join(annlib_dir, "src")
+    for item in os.listdir(annlib_src):
+        if item.find(".h") > 0:
+            yield {
+                "src": os.path.join(annlib_src, item),
+                "dst": os.path.join(annlib_mode_src, item),
+            }
+
+
+def yield_src(search_mode):
+    annlib_mode_src = os.path.join(annlib_under_build, search_mode)
+    if not os.path.isdir(annlib_mode_src):
+        os.makedirs(annlib_mode_src)
+    annlib_src = os.path.join(annlib_dir, "src")
+    for item in os.listdir(annlib_src):
+        if item.find(".cpp") > 0:
+            yield {
+                "src": os.path.join(annlib_src, item),
+                "dst": os.path.join(annlib_mode_src, item),
+            }
+
+
+def process_includes(lines, search_mode):
+    # Rule 1.  The header guards should reflect the search_mode
+    guard_line_no = 0
+    while lines[guard_line_no].find("#ifndef") < 0:
+        guard_line_no += 1
+    for i in [guard_line_no, guard_line_no + 1]:
+        lines[i] = lines[i].replace("ANN", "ANN" + search_mode.upper())
+
+    # Rule 2.  Include path should reflect search mode instance
+    line_no = 0
+    while line_no < len(lines):
+        if lines[line_no].find("#include") >= 0 and lines[line_no].find("ANN/") >= 0:
+            lines[line_no] = lines[line_no].replace(
+                "ANN/", "ANN" + search_mode.upper() + "/"
+            )
+        line_no += 1
+
+    # Rule 3.  Enclose functions in namespace
+    # 3a.  Opening of the namespace
+    line_no = 0
+    last_include = 0
+    while line_no < len(lines):
+        if lines[line_no].find("#include") >= 0:
+            last_include = copy.copy(line_no)
+        line_no += 1
+    lines.insert(last_include + 1, "namespace ann" + search_mode + " {\n")
+
+    # 3b.  special case for the file "ANN.h" where opening { is inside if clause
+    line_no = 0
+    last_include = 0
+    while line_no < len(lines):
+        if lines[line_no].find("<cvalues>") >= 0:
+            last_include = copy.copy(line_no)
+            break
+        line_no += 1
+    if last_include > 0:
+        lines.insert(last_include + 1, "namespace ann" + search_mode + " {\n")
+
+    # 3c.  Closing of the namespace
+    line_no = 0
+    last_endif = 0
+    while line_no < len(lines):
+        if lines[line_no].find("#endif") >= 0:
+            last_endif = copy.copy(line_no)
+        line_no += 1
+    lines.insert(last_endif, "} //namespace ann" + search_mode + "\n")
+
+    # Rule 4.  Define ANN_ALLOW_SELF_MATCH
+    line_no = 0
+    while line_no < len(lines):
+        if (
+            lines[line_no].find("ANNbool") >= 0
+            and lines[line_no].find("ANN_ALLOW_SELF_MATCH") >= 0
+        ):
+            bool_result = {"self_include": "ANNtrue", "self_exclude": "ANNfalse"}
+            if lines[line_no].find(bool_result[search_mode]) < 0:
+                code_result = {
+                    "self_include": "const ANNbool ANN_ALLOW_SELF_MATCH = ANNtrue;\n",
+                    "self_exclude": "const ANNbool ANN_ALLOW_SELF_MATCH = ANNfalse;\n",
+                }
+                lines[line_no] = code_result[search_mode]
+            break
+        line_no += 1
+    return
+
+
+def process_src_includes(lines, search_mode):
+    process_includes(lines, search_mode)
+    # Rule 5.  Header guards for priority queues
+    guard_line_no = 0
+    while lines[guard_line_no].find("#ifndef") < 0:
+        guard_line_no += 1
+    for i in [guard_line_no, guard_line_no + 1]:
+        lines[i] = lines[i].replace("PR_Q", "ANN" + search_mode.upper() + "_PR_Q")
+
+
+def process_src(lines, search_mode, unit):
+    if unit in [
+        "ANN.cpp",
+        "bd_tree.cpp",
+        "brute.cpp",
+        "kd_tree.cpp",
+        "kd_util.cpp",
+        "perf.cpp",
+    ]:
+        # Rule 2.  Include path should reflect search mode instance
+        line_no = 0
+        while line_no < len(lines):
+            if (
+                lines[line_no].find("#include") >= 0
+                and lines[line_no].find("ANN/") >= 0
+            ):
+                lines[line_no] = lines[line_no].replace(
+                    "ANN/", "ANN" + search_mode.upper() + "/"
+                )
+            line_no += 1
+
+    if unit in [
+        "ANN.cpp",
+        "kd_fix_rad_search.cpp",
+        "kd_pr_search.cpp",
+        "kd_search.cpp",
+        "kd_split.cpp",
+        "kd_tree.cpp",
+        "kd_util.cpp",
+        "perf.cpp",
+    ]:
+        # Rule 6. Enclosure within namespace
+        # 3a.  Opening of the namespace
+        line_no = 0
+        last_include = 0
+        while line_no < len(lines):
+            if lines[line_no].find("#include") >= 0:
+                last_include = copy.copy(line_no)
+            line_no += 1
+        lines.insert(last_include + 1, "namespace ann" + search_mode + " {\n")
+
+        # 6c.  Closing of the namespace
+        lines.append("} //namespace ann" + search_mode + "\n")
+
+    if unit in [
+        "bd_fix_rad_search.cpp",
+        "bd_pr_search.cpp",
+        "bd_search.cpp",
+        "bd_tree.cpp",
+        "brute.cpp",
+        "kd_dump.cpp",
+    ]:
+        # Rule 7.  Namespace using clause
+        line_no = 0
+        last_include = 0
+        while line_no < len(lines):
+            if lines[line_no].find("#include") >= 0:
+                last_include = copy.copy(line_no)
+            line_no += 1
+        lines.insert(last_include + 1, "using namespace ann" + search_mode + ";\n")
+
+
+print("Generating C++ files for self-inclusive approximate nearest neighbour")
+for search_mode in ["self_exclude", "self_include"]:
+    for item in yield_includes(search_mode):
+        # print item
+        with open(item["src"], "r") as G:
+            lines = G.readlines()
+        process_includes(lines, search_mode)
+        with open(item["dst"], "w") as F:
+            F.write("".join(lines))
+
+    for item in yield_src_includes(search_mode):
+        # print item
+        with open(item["src"], "r") as G:
+            lines = G.readlines()
+        process_src_includes(lines, search_mode)
+        with open(item["dst"], "w") as F:
+            F.write("".join(lines))
+
+    for item in yield_src(search_mode):
+        # print item
+        with open(item["src"], "r") as G:
+            lines = G.readlines()
+        process_src(lines, search_mode, os.path.basename(item["src"]))
+        with open(item["dst"], "w") as F:
+            F.write("".join(lines))
+EOF
+
+
+FILE=ann-cctbx/Makefile.am
+echo "Saved cctbx automake in ${FILE}"
+dd status=none of=${FILE} << "EOF"
+annselfincdir = $(includedir)/ANNSELF_INCLUDE
+
+annselfinc_HEADERS =	\
+	include/ANNSELF_INCLUDE/ANN.h	\
+	include/ANNSELF_INCLUDE/ANNx.h	\
+	include/ANNSELF_INCLUDE/ANNperf.h
+
+annselfexcdir = $(includedir)/ANNSELF_EXCLUDE
+
+annselfexc_HEADERS =	\
+	include/ANNSELF_EXCLUDE/ANN.h	\
+	include/ANNSELF_EXCLUDE/ANNx.h	\
+	include/ANNSELF_EXCLUDE/ANNperf.h
+
+AM_CPPFLAGS = -I$(top_srcdir)/ann-cctbx/include
+
+lib_LTLIBRARIES = libann-cctbx.la
+
+libann_cctbx_la_SOURCES =		\
+	self_include/ANN.h			\
+	self_include/ANN.cpp			\
+	self_include/ANNx.h			\
+	self_include/ANNperf.h		\
+	self_include/bd_fix_rad_search.cpp	\
+	self_include/bd_pr_search.cpp	\
+	self_include/bd_search.cpp		\
+	self_include/bd_tree.cpp		\
+	self_include/bd_tree.h		\
+	self_include/brute.cpp		\
+	self_include/kd_dump.cpp		\
+	self_include/kd_fix_rad_search.cpp	\
+	self_include/kd_pr_search.cpp	\
+	self_include/kd_pr_search.h		\
+	self_include/kd_search.cpp		\
+	self_include/kd_search.h		\
+	self_include/kd_split.cpp		\
+	self_include/kd_split.h		\
+	self_include/kd_tree.cpp		\
+	self_include/kd_tree.h		\
+	self_include/kd_util.cpp		\
+	self_include/kd_util.h		\
+	self_include/perf.cpp		\
+	self_include/pr_queue.h		\
+	self_include/pr_queue_k.h       \
+	self_exclude/ANN.h			\
+	self_exclude/ANN.cpp			\
+	self_exclude/ANNx.h			\
+	self_exclude/ANNperf.h		\
+	self_exclude/bd_fix_rad_search.cpp	\
+	self_exclude/bd_pr_search.cpp	\
+	self_exclude/bd_search.cpp		\
+	self_exclude/bd_tree.cpp		\
+	self_exclude/bd_tree.h		\
+	self_exclude/brute.cpp		\
+	self_exclude/kd_dump.cpp		\
+	self_exclude/kd_fix_rad_search.cpp	\
+	self_exclude/kd_pr_search.cpp	\
+	self_exclude/kd_pr_search.h		\
+	self_exclude/kd_search.cpp		\
+	self_exclude/kd_search.h		\
+	self_exclude/kd_split.cpp		\
+	self_exclude/kd_split.h		\
+	self_exclude/kd_tree.cpp		\
+	self_exclude/kd_tree.h		\
+	self_exclude/kd_util.cpp		\
+	self_exclude/kd_util.h		\
+	self_exclude/perf.cpp		\
+	self_exclude/pr_queue.h		\
+	self_exclude/pr_queue_k.h
+
+libann_cctbx_la_LDFLAGS = -no-undefined -version-info 0:0:0
+EOF

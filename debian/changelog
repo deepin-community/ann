@@ -1,3 +1,25 @@
+ann (1.1.2+doc-9) unstable; urgency=medium
+
+  * add an annself_exclude namespace for cctbx
+
+ -- Picca Frédéric-Emmanuel <picca@debian.org>  Thu, 13 Oct 2022 16:29:12 +0200
+
+ann (1.1.2+doc-8) unstable; urgency=medium
+
+  * Use secure URI in Homepage field.
+  * Bump debhelper from old 11 to 13.
+  * Set debhelper-compat version in Build-Depends.
+  * d/patches:
+    + unapply all patches and restore a clean untouched sources directory
+    + Added patch for the cctbx variant
+  * d/cctbx: Script which generate the cctbx variant from the ann sources.
+  * d/control: Added B-D python3 used by d/cctbx
+  * d/control: Added libann-cctbx-dev and libann-cctbx0 packages.
+    these packages are variant used internaly by cctbx
+  * d/control: Added myself has Uploaders
+
+ -- Picca Frédéric-Emmanuel <picca@debian.org>  Thu, 08 Sep 2022 16:56:02 +0200
+
 ann (1.1.2+doc-7) unstable; urgency=medium
 
   * Import and merge upstream sources + patches to the package git repo.
@@ -121,4 +143,3 @@ ann (1.1.1+doc-1) unstable; urgency=low
   * Initial release (closes: #505487)
 
  -- Rafael Laboissiere <rafael@debian.org>  Sun, 22 Mar 2009 23:21:56 +0100
-
